@@ -1,7 +1,9 @@
 "use client";
 import { MessageCircle, Users, Shield, Zap, Globe, Lock } from 'lucide-react';
+import { useRouter } from 'next/navigation';
 
-export default function HomePage({ onNavigate }) {
+export default function HomePage() {
+  const router = useRouter();
   return (
     <div className="h-full w-full bg-gradient-to-br from-black via-gray-900 to-gray-800 overflow-y-auto">
       {/* Navigation */}
@@ -16,13 +18,13 @@ export default function HomePage({ onNavigate }) {
             </div>
             <div className="flex items-center gap-4">
               <button
-                onClick={() => onNavigate('login')}
+                onClick={() => router.push('/auth/login')}
                 className="px-6 py-2 text-gray-300 hover:text-white transition-colors"
               >
                 Log In
               </button>
               <button
-                onClick={() => onNavigate('register')}
+                onClick={() => router.push('/auth/register')}
                 className="px-6 py-2 bg-gradient-to-r from-gray-700 to-gray-900 text-white rounded-lg hover:from-gray-600 hover:to-gray-800 transition-all"
               >
                 Sign Up
@@ -49,13 +51,13 @@ export default function HomePage({ onNavigate }) {
           </p>
           <div className="flex flex-col sm:flex-row gap-4 justify-center">
             <button
-              onClick={() => onNavigate('register')}
+              onClick={() => router.push('/auth/register')}
               className="px-8 py-3 bg-gradient-to-r from-gray-700 to-gray-900 text-white rounded-lg font-semibold hover:from-gray-600 hover:to-gray-800 transition-all shadow-lg"
             >
               Get Started
             </button>
             <button
-              onClick={() => onNavigate('login')}
+              onClick={() => router.push('/auth/login')}
               className="px-8 py-3 bg-gray-800 text-white rounded-lg font-semibold hover:bg-gray-700 transition-all border border-gray-700"
             >
               Sign In
@@ -142,7 +144,7 @@ export default function HomePage({ onNavigate }) {
             Join millions of people who use Messenger to stay connected with the people that matter most.
           </p>
           <button
-            onClick={() => onNavigate('register')}
+            onClick={() => router.push('/auth/register')}
             className="px-8 py-3 bg-gradient-to-r from-gray-700 to-gray-900 text-white rounded-lg font-semibold hover:from-gray-600 hover:to-gray-800 transition-all shadow-lg"
           >
             Create Free Account
