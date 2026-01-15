@@ -1,9 +1,12 @@
 "use client";
 import { MessageCircle, Users, Shield, Zap, Globe, Lock } from 'lucide-react';
 import { useRouter } from 'next/navigation';
+import { useAuth } from '../lib/contexts/auth-context';
 
 export default function HomePage() {
   const router = useRouter();
+  const { isAuthenticated, user, logout } = useAuth();
+
   return (
     <div className="h-full w-full bg-gradient-to-br from-black via-gray-900 to-gray-800 overflow-y-auto">
       {/* Navigation */}
@@ -17,18 +20,41 @@ export default function HomePage() {
               <span className="text-xl font-bold text-white">Messenger</span>
             </div>
             <div className="flex items-center gap-4">
-              <button
-                onClick={() => router.push('/auth/login')}
-                className="px-6 py-2 text-gray-300 hover:text-white transition-colors"
-              >
-                Log In
-              </button>
-              <button
-                onClick={() => router.push('/auth/register')}
-                className="px-6 py-2 bg-gradient-to-r from-gray-700 to-gray-900 text-white rounded-lg hover:from-gray-600 hover:to-gray-800 transition-all"
-              >
-                Sign Up
-              </button>
+              {isAuthenticated ? (
+                <>
+                  <span className="text-gray-300">Welcome, {user?.username || user?.name || 'User'}</span>
+                  <button
+                    onClick={() => router.push('/chat')}
+                    className="px-6 py-2 bg-gradient-to-r from-gray-700 to-gray-900 text-white rounded-lg hover:from-gray-600 hover:to-gray-800 transition-all"
+                  >
+                    Go to Chat
+                  </button>
+                  <button
+                    onClick={() => {
+                      logout();
+                      router.push('/');
+                    }}
+                    className="px-6 py-2 text-gray-300 hover:text-white transition-colors"
+                  >
+                    Log Out
+                  </button>
+                </>
+              ) : (
+                <>
+                  <button
+                    onClick={() => router.push('/auth/login')}
+                    className="px-6 py-2 text-gray-300 hover:text-white transition-colors"
+                  >
+                    Log In
+                  </button>
+                  <button
+                    onClick={() => router.push('/auth/register')}
+                    className="px-6 py-2 bg-gradient-to-r from-gray-700 to-gray-900 text-white rounded-lg hover:from-gray-600 hover:to-gray-800 transition-all"
+                  >
+                    Sign Up
+                  </button>
+                </>
+              )}
             </div>
           </div>
         </div>
@@ -50,18 +76,29 @@ export default function HomePage() {
             Chat, share, and connect instantly from anywhere in the world.
           </p>
           <div className="flex flex-col sm:flex-row gap-4 justify-center">
-            <button
-              onClick={() => router.push('/auth/register')}
-              className="px-8 py-3 bg-gradient-to-r from-gray-700 to-gray-900 text-white rounded-lg font-semibold hover:from-gray-600 hover:to-gray-800 transition-all shadow-lg"
-            >
-              Get Started
-            </button>
-            <button
-              onClick={() => router.push('/auth/login')}
-              className="px-8 py-3 bg-gray-800 text-white rounded-lg font-semibold hover:bg-gray-700 transition-all border border-gray-700"
-            >
-              Sign In
-            </button>
+            {isAuthenticated ? (
+              <button
+                onClick={() => router.push('/chat')}
+                className="px-8 py-3 bg-gradient-to-r from-gray-700 to-gray-900 text-white rounded-lg font-semibold hover:from-gray-600 hover:to-gray-800 transition-all shadow-lg"
+              >
+                Go to Chat
+              </button>
+            ) : (
+              <>
+                <button
+                  onClick={() => router.push('/auth/register')}
+                  className="px-8 py-3 bg-gradient-to-r from-gray-700 to-gray-900 text-white rounded-lg font-semibold hover:from-gray-600 hover:to-gray-800 transition-all shadow-lg"
+                >
+                  Get Started
+                </button>
+                <button
+                  onClick={() => router.push('/auth/login')}
+                  className="px-8 py-3 bg-gray-800 text-white rounded-lg font-semibold hover:bg-gray-700 transition-all border border-gray-700"
+                >
+                  Sign In
+                </button>
+              </>
+            )}
           </div>
         </div>
       </section>
@@ -143,12 +180,21 @@ export default function HomePage() {
           <p className="text-gray-400 text-lg mb-8 max-w-2xl mx-auto">
             Join millions of people who use Messenger to stay connected with the people that matter most.
           </p>
-          <button
-            onClick={() => router.push('/auth/register')}
-            className="px-8 py-3 bg-gradient-to-r from-gray-700 to-gray-900 text-white rounded-lg font-semibold hover:from-gray-600 hover:to-gray-800 transition-all shadow-lg"
-          >
-            Create Free Account
-          </button>
+          {isAuthenticated ? (
+            <button
+              onClick={() => router.push('/chat')}
+              className="px-8 py-3 bg-gradient-to-r from-gray-700 to-gray-900 text-white rounded-lg font-semibold hover:from-gray-600 hover:to-gray-800 transition-all shadow-lg"
+            >
+              Go to Your Messages
+            </button>
+          ) : (
+            <button
+              onClick={() => router.push('/auth/register')}
+              className="px-8 py-3 bg-gradient-to-r from-gray-700 to-gray-900 text-white rounded-lg font-semibold hover:from-gray-600 hover:to-gray-800 transition-all shadow-lg"
+            >
+              Create Free Account
+            </button>
+          )}
         </div>
       </section>
 

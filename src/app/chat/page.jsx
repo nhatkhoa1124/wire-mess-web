@@ -1,4 +1,7 @@
 "use client";
+import { useEffect } from 'react';
+import { useRouter } from 'next/navigation';
+import { useAuth } from '../../lib/contexts/auth-context';
 import { useState } from 'react';
 import ConversationList from '../../components/chat/conversation-list';
 import MessageThread from '../../components/chat/message-thread';
@@ -76,6 +79,15 @@ const mockMessages = {
 };
 
 export default function MessengerPage() {
+  const { isAuthenticated, loading } = useAuth();
+  const router = useRouter();
+
+  useEffect(() => {
+    if (!loading && !isAuthenticated) {
+      router.push('/auth/login');
+    }
+  }, [isAuthenticated, loading, router]);
+
   const [selectedConversation, setSelectedConversation] = useState(mockConversations[0]);
   const [messages, setMessages] = useState(mockMessages);
 
@@ -92,6 +104,20 @@ export default function MessengerPage() {
       [selectedConversation.id]: [...messages[selectedConversation.id], newMessage],
     });
   };
+
+  // Show loading while checking authentication
+  if (loading) {
+    return (
+      <div className="h-screen w-full flex items-center justify-center bg-gray-900">
+        <div className="text-white">Loading...</div>
+      </div>
+    );
+  }
+
+  // Don't render if not authenticated (will redirect)
+  if (!isAuthenticated) {
+    return null;
+  }
 
   return (
     <div className="h-screen w-full flex bg-gray-900">

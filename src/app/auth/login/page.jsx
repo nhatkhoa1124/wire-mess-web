@@ -2,12 +2,17 @@
 import { useState } from 'react';
 import { MessageCircle } from 'lucide-react';
 import { fetchAPI } from '../../../lib/api';
+import { useAuth } from '../../../lib/contexts/auth-context';
+import { useRouter } from 'next/navigation';
 
-export default function LoginPage({ onLogin }) {
+export default function LoginPage() {
   const [username, setUsername] = useState('');
   const [password, setPassword] = useState('');
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
+
+  const { login } = useAuth();
+  const router = useRouter();
 
   const handleSubmit = async (e) => {
     e.preventDefault();
@@ -20,7 +25,12 @@ export default function LoginPage({ onLogin }) {
         body: { username, password },
       });
       console.log(data);
-      onLogin(data);
+
+      // Use the auth context login function
+      await login(data);
+
+      // Redirect to chat page after successful login
+      router.push('/chat');
     } catch (error) {
       setError(error.message);
     } finally {
