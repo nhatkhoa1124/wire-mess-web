@@ -1,19 +1,20 @@
-import { fetchAPI } from '../../../../lib/api';
+import { fetchAPI } from '../../../lib/api';
 
-export async function POST(request) {
+export async function GET(request) {
   try {
-    const { username, password } = await request.json();
-
-    const data = await fetchAPI('/chat', {
-      method: 'POST',
-      body: { username, password },
+    // Get Authorization header from request
+    const authHeader = request.headers.get('authorization');
+    
+    const data = await fetchAPI('/conversations/me', {
+      headers: {
+        ...(authHeader && { 'Authorization': authHeader }),
+      },
     });
-
     return Response.json(data);
   } catch (error) {
     return Response.json(
-      { message: error.message || 'Login failed' },
-      { status: 400 }
+      { message: error.message || 'Failed to fetch conversations' },
+      { status: 500 }
     );
   }
 }

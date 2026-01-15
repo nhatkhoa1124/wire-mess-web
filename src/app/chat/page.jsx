@@ -1,58 +1,10 @@
 "use client";
-import { useEffect } from 'react';
+import { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { useAuth } from '../../lib/contexts/auth-context';
-import { useState } from 'react';
 import ConversationList from '../../components/chat/conversation-list';
 import MessageThread from '../../components/chat/message-thread';
-
-const mockConversations = [
-  {
-    id: 1,
-    name: 'Sarah Johnson',
-    avatar: 'https://images.unsplash.com/photo-1494790108377-be9c29b29330?w=100&h=100&fit=crop',
-    lastMessage: 'Hey! How are you doing?',
-    timestamp: '2m',
-    unread: 2,
-    online: true,
-  },
-  {
-    id: 2,
-    name: 'Mike Chen',
-    avatar: 'https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?w=100&h=100&fit=crop',
-    lastMessage: 'Did you see the game last night?',
-    timestamp: '1h',
-    unread: 0,
-    online: true,
-  },
-  {
-    id: 3,
-    name: 'Emily Rodriguez',
-    avatar: 'https://images.unsplash.com/photo-1438761681033-6461ffad8d80?w=100&h=100&fit=crop',
-    lastMessage: 'Thanks for your help! 😊',
-    timestamp: '3h',
-    unread: 0,
-    online: false,
-  },
-  {
-    id: 4,
-    name: 'David Park',
-    avatar: 'https://images.unsplash.com/photo-1500648767791-00dcc994a43e?w=100&h=100&fit=crop',
-    lastMessage: 'See you tomorrow!',
-    timestamp: '5h',
-    unread: 0,
-    online: false,
-  },
-  {
-    id: 5,
-    name: 'Jessica Williams',
-    avatar: 'https://images.unsplash.com/photo-1544005313-94ddf0286df2?w=100&h=100&fit=crop',
-    lastMessage: 'Can you send me that file?',
-    timestamp: '1d',
-    unread: 1,
-    online: false,
-  },
-];
+import { fetchAPI } from '../../lib/api';
 
 const mockMessages = {
   1: [
@@ -79,17 +31,52 @@ const mockMessages = {
 };
 
 export default function MessengerPage() {
-  const { isAuthenticated, loading } = useAuth();
+  const { isAuthenticated, loading: authLoading } = useAuth();
   const router = useRouter();
+  const [conversations, setConversations] = useState([]);
+  const [conversationsLoading, setConversationsLoading] = useState(true);
+  const [selectedConversation, setSelectedConversation] = useState(null);
+  const [messages, setMessages] = useState(mockMessages);
 
   useEffect(() => {
-    if (!loading && !isAuthenticated) {
+    if (!authLoading && !isAuthenticated) {
       router.push('/auth/login');
     }
-  }, [isAuthenticated, loading, router]);
+  }, [isAuthenticated, authLoading, router]);
 
-  const [selectedConversation, setSelectedConversation] = useState(mockConversations[0]);
-  const [messages, setMessages] = useState(mockMessages);
+  // Fetch conversations from API
+  useEffect(() => {
+    const fetchConversations = async () => {
+      if (!isAuthenticated) return;
+
+      try {
+        const token = localStorage.getItem('token');
+        const response = await fetch('/api/chat', {
+          method: 'GET',
+          headers: {
+            'Content-Type': 'application/json',
+            ...(token && { 'Authorization': `Bearer ${token}` }),
+          },
+        });
+        
+        if (!response.ok) {
+          throw new Error('Failed to fetch conversations');
+        }
+        
+        const data = await response.json();
+        setConversations(data);
+        if (data.length > 0 && !selectedConversation) {
+          setSelectedConversation(data[0]);
+        }
+      } catch (error) {
+        console.error('Failed to fetch conversations:', error);
+      } finally {
+        setConversationsLoading(false);
+      }
+    };
+
+    fetchConversations();
+  }, [isAuthenticated]);
 
   const handleSendMessage = (text) => {
     const newMessage = {
@@ -105,8 +92,8 @@ export default function MessengerPage() {
     });
   };
 
-  // Show loading while checking authentication
-  if (loading) {
+  // Show loading while checking authentication or fetching conversations
+  if (authLoading || conversationsLoading) {
     return (
       <div className="h-screen w-full flex items-center justify-center bg-gray-900">
         <div className="text-white">Loading...</div>
@@ -122,15 +109,21 @@ export default function MessengerPage() {
   return (
     <div className="h-screen w-full flex bg-gray-900">
       <ConversationList
-        conversations={mockConversations}
+        conversations={conversations}
         selectedConversation={selectedConversation}
         onSelectConversation={setSelectedConversation}
       />
-      <MessageThread
-        conversation={selectedConversation}
-        messages={messages[selectedConversation.id] || []}
-        onSendMessage={handleSendMessage}
-      />
+      {selectedConversation ? (
+        <MessageThread
+          conversation={selectedConversation}
+          messages={messages[selectedConversation.id] || []}
+          onSendMessage={handleSendMessage}
+        />
+      ) : (
+        <div className="flex-1 flex items-center justify-center bg-black">
+          <p className="text-gray-400">Select a conversation to start messaging</p>
+        </div>
+      )}
     </div>
   );
 }
