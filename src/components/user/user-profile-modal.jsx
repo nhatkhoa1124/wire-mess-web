@@ -4,55 +4,107 @@ import { X, Camera, Edit2, Save } from 'lucide-react';
 import { useAuth } from '@/lib/contexts/auth-context';
 
 export default function UserProfileModal({ isOpen, onClose }) {
-  const { user, logout } = useAuth();
+  const { user, setUser, logout } = useAuth();
   const [isEditing, setIsEditing] = useState(false);
   const [name, setName] = useState(user?.name || '');
   const [email, setEmail] = useState(user?.email || '');
-  const [bio, setBio] = useState(user?.bio || '');
+  const [phoneNumber, setPhoneNumber] = useState(user?.phoneNumber || '');
+  const [avatarUrl, setAvatarUrl] = useState(user?.avatar || '');
   const [status, setStatus] = useState(user?.status || 'Available');
+  const [error, setError] = useState('');
+  const [loading, setLoading] = useState(false);
 
   if (!user) return null;
 
   const handleSave = async () => {
+    setError('');
+    setLoading(true);
+
+    // Validate email format if changed
+    if (email && email.trim() !== '') {
+      const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+      if (!emailRegex.test(email)) {
+        setError('Invalid email format');
+        setLoading(false);
+        return;
+      }
+    }
+
+    // Validate username if changed
+    if (name && name.trim() !== '' && name.trim().length < 3) {
+      setError('Username must be at least 3 characters');
+      setLoading(false);
+      return;
+    }
+
     try {
       const token = localStorage.getItem('token');
-      const response = await fetch('/api/users/me', {
-        method: 'PATCH',
+      
+      // Build request body with only changed fields
+      const updateData = {};
+      if (name && name.trim() !== user.name) {
+        updateData.username = name.trim();
+      }
+      if (email && email.trim() !== user.email) {
+        updateData.email = email.trim();
+      }
+      if (phoneNumber && phoneNumber.trim() !== (user.phoneNumber || '')) {
+        updateData.phoneNumber = phoneNumber.trim();
+      }
+      if (avatarUrl && avatarUrl.trim() !== (user.avatar || '')) {
+        updateData.avatarUrl = avatarUrl.trim();
+      }
+
+      const response = await fetch('/api/users/me/update', {
+        method: 'PUT',
         headers: {
           'Content-Type': 'application/json',
           'Authorization': `Bearer ${token}`,
         },
-        body: JSON.stringify({
-          username: name,
-          email,
-          bio,
-          status,
-        }),
+        body: JSON.stringify(updateData),
       });
 
-      if (response.ok) {
-        const updatedUser = await response.json();
-        // Update local user data
-        const formattedUser = {
-          ...user,
-          name: updatedUser.username || name,
-          email: updatedUser.email || email,
-          bio: updatedUser.bio || bio,
-          status: status,
-        };
-        localStorage.setItem('user', JSON.stringify(formattedUser));
-        setIsEditing(false);
+      const data = await response.json();
+
+      if (!response.ok) {
+        throw new Error(data.message || 'Failed to update profile');
       }
+
+      // Update user in auth context with API response
+      const updatedUser = {
+        ...user,
+        name: data.username,
+        email: data.email,
+        phoneNumber: data.phoneNumber,
+        avatar: data.avatarUrl,
+        status: status,
+      };
+
+      setUser(updatedUser);
+      localStorage.setItem('user', JSON.stringify(updatedUser));
+      
+      // Update local state
+      setName(data.username);
+      setEmail(data.email);
+      setPhoneNumber(data.phoneNumber || '');
+      setAvatarUrl(data.avatarUrl || '');
+      
+      setIsEditing(false);
     } catch (error) {
       console.error('Failed to update profile:', error);
+      setError(error.message || 'Failed to update profile. Please try again.');
+    } finally {
+      setLoading(false);
     }
   };
 
   const handleCancel = () => {
     setName(user.name);
     setEmail(user.email);
-    setBio(user.bio || '');
+    setPhoneNumber(user.phoneNumber || '');
+    setAvatarUrl(user.avatar || '');
     setStatus(user.status || 'Available');
+    setError('');
     setIsEditing(false);
   };
 
@@ -102,6 +154,13 @@ export default function UserProfileModal({ isOpen, onClose }) {
 
           {/* Profile Fields */}
           <div className="space-y-4">
+            {/* Error Message */}
+            {error && (
+              <div className="p-3 bg-red-900/30 border border-red-800/50 text-red-400 rounded-lg text-sm">
+                {error}
+              </div>
+            )}
+
             {/* Name */}
             <div>
               <label className="block text-sm font-medium text-gray-300 mb-2">
@@ -113,6 +172,7 @@ export default function UserProfileModal({ isOpen, onClose }) {
                   value={name}
                   onChange={(e) => setName(e.target.value)}
                   className="w-full px-4 py-3 bg-gray-800 border border-gray-700 text-white rounded-lg focus:outline-none focus:ring-2 focus:ring-gray-600 placeholder-gray-500"
+                  placeholder="Enter your name"
                 />
               ) : (
                 <p className="text-white text-lg">{user.name}</p>
@@ -130,6 +190,7 @@ export default function UserProfileModal({ isOpen, onClose }) {
                   value={email}
                   onChange={(e) => setEmail(e.target.value)}
                   className="w-full px-4 py-3 bg-gray-800 border border-gray-700 text-white rounded-lg focus:outline-none focus:ring-2 focus:ring-gray-600 placeholder-gray-500"
+                  placeholder="Enter your email"
                 />
               ) : (
                 <p className="text-gray-400">{user.email}</p>
@@ -137,14 +198,40 @@ export default function UserProfileModal({ isOpen, onClose }) {
             </div>
 
             {/* Phone Number */}
-            {user.phoneNumber && (
-              <div>
-                <label className="block text-sm font-medium text-gray-300 mb-2">
-                  Phone Number
-                </label>
-                <p className="text-gray-400">{user.phoneNumber}</p>
-              </div>
-            )}
+            <div>
+              <label className="block text-sm font-medium text-gray-300 mb-2">
+                Phone Number
+              </label>
+              {isEditing ? (
+                <input
+                  type="tel"
+                  value={phoneNumber}
+                  onChange={(e) => setPhoneNumber(e.target.value)}
+                  className="w-full px-4 py-3 bg-gray-800 border border-gray-700 text-white rounded-lg focus:outline-none focus:ring-2 focus:ring-gray-600 placeholder-gray-500"
+                  placeholder="Enter your phone number"
+                />
+              ) : (
+                <p className="text-gray-400">{user.phoneNumber || 'Not set'}</p>
+              )}
+            </div>
+
+            {/* Avatar URL */}
+            <div>
+              <label className="block text-sm font-medium text-gray-300 mb-2">
+                Avatar URL
+              </label>
+              {isEditing ? (
+                <input
+                  type="url"
+                  value={avatarUrl}
+                  onChange={(e) => setAvatarUrl(e.target.value)}
+                  className="w-full px-4 py-3 bg-gray-800 border border-gray-700 text-white rounded-lg focus:outline-none focus:ring-2 focus:ring-gray-600 placeholder-gray-500"
+                  placeholder="Enter avatar image URL"
+                />
+              ) : (
+                <p className="text-gray-400 truncate">{user.avatar || 'Not set'}</p>
+              )}
+            </div>
 
             {/* Status */}
             <div>
@@ -174,24 +261,6 @@ export default function UserProfileModal({ isOpen, onClose }) {
                 </div>
               )}
             </div>
-
-            {/* Bio */}
-            <div>
-              <label className="block text-sm font-medium text-gray-300 mb-2">
-                Bio
-              </label>
-              {isEditing ? (
-                <textarea
-                  value={bio}
-                  onChange={(e) => setBio(e.target.value)}
-                  rows={4}
-                  className="w-full px-4 py-3 bg-gray-800 border border-gray-700 text-white rounded-lg focus:outline-none focus:ring-2 focus:ring-gray-600 placeholder-gray-500"
-                  placeholder="Tell us about yourself..."
-                />
-              ) : (
-                <p className="text-gray-400">{user.bio || 'No bio yet.'}</p>
-              )}
-            </div>
           </div>
 
           {/* Action Buttons */}
@@ -200,14 +269,16 @@ export default function UserProfileModal({ isOpen, onClose }) {
               <>
                 <button
                   onClick={handleSave}
-                  className="w-full flex items-center justify-center gap-2 px-4 py-3 bg-gradient-to-r from-gray-700 to-gray-900 text-white rounded-lg font-semibold hover:from-gray-600 hover:to-gray-800 transition-all"
+                  disabled={loading}
+                  className="w-full flex items-center justify-center gap-2 px-4 py-3 bg-gradient-to-r from-gray-700 to-gray-900 text-white rounded-lg font-semibold hover:from-gray-600 hover:to-gray-800 transition-all disabled:opacity-50 disabled:cursor-not-allowed"
                 >
                   <Save className="w-5 h-5" />
-                  Save Changes
+                  {loading ? 'Saving...' : 'Save Changes'}
                 </button>
                 <button
                   onClick={handleCancel}
-                  className="w-full px-4 py-3 bg-gray-800 text-white rounded-lg font-semibold hover:bg-gray-700 transition-all"
+                  disabled={loading}
+                  className="w-full px-4 py-3 bg-gray-800 text-white rounded-lg font-semibold hover:bg-gray-700 transition-all disabled:opacity-50 disabled:cursor-not-allowed"
                 >
                   Cancel
                 </button>
