@@ -4,6 +4,7 @@ import { useRouter } from 'next/navigation';
 import { useAuth } from '../../lib/contexts/auth-context';
 import ConversationList from '../../components/chat/conversation-list';
 import MessageThread from '../../components/chat/message-thread';
+import UserProfileModal from '../../components/user/user-profile-modal';
 import { fetchAPI } from '../../lib/api';
 
 const mockMessages = {
@@ -38,6 +39,7 @@ export default function MessengerPage() {
   const [selectedConversation, setSelectedConversation] = useState(null);
   const [messages, setMessages] = useState(mockMessages);
   const [userLoading, setUserLoading] = useState(true);
+  const [isProfileOpen, setIsProfileOpen] = useState(false);
 
   useEffect(() => {
     if (!authLoading && !isAuthenticated) {
@@ -159,6 +161,7 @@ export default function MessengerPage() {
         conversations={conversations}
         selectedConversation={selectedConversation}
         onSelectConversation={setSelectedConversation}
+        onOpenProfile={() => setIsProfileOpen(true)}
       />
       {selectedConversation ? (
         <MessageThread
@@ -171,6 +174,12 @@ export default function MessengerPage() {
           <p className="text-gray-400">Select a conversation to start messaging</p>
         </div>
       )}
+      
+      {/* User Profile Modal */}
+      <UserProfileModal 
+        isOpen={isProfileOpen}
+        onClose={() => setIsProfileOpen(false)}
+      />
     </div>
   );
 }
