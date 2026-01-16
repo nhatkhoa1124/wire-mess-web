@@ -2,6 +2,7 @@
 import { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { useAuth } from '../../lib/contexts/auth-context';
+import Sidebar from '../../components/chat/sidebar';
 import ConversationList from '../../components/chat/conversation-list';
 import MessageThread from '../../components/chat/message-thread';
 import UserProfileModal from '../../components/user/user-profile-modal';
@@ -32,14 +33,14 @@ const mockMessages = {
 };
 
 export default function MessengerPage() {
-  const { isAuthenticated, loading: authLoading, setUser } = useAuth();
+  const { isAuthenticated, loading: authLoading, setUser, user } = useAuth();
   const router = useRouter();
   const [conversations, setConversations] = useState([]);
   const [conversationsLoading, setConversationsLoading] = useState(true);
   const [selectedConversation, setSelectedConversation] = useState(null);
   const [messages, setMessages] = useState(mockMessages);
-  const [userLoading, setUserLoading] = useState(true);
   const [isProfileOpen, setIsProfileOpen] = useState(false);
+  const [activeView, setActiveView] = useState('messages');
 
   useEffect(() => {
     if (!authLoading && !isAuthenticated) {
@@ -47,10 +48,13 @@ export default function MessengerPage() {
     }
   }, [isAuthenticated, authLoading, router]);
 
-  // Fetch current user information
+  // Fetch current user information in background (non-blocking)
   useEffect(() => {
     const fetchUserInfo = async () => {
       if (!isAuthenticated) return;
+      
+      // Skip if user already exists (from cache or previous fetch)
+      if (user && user.id) return;
 
       try {
         const token = localStorage.getItem('token');
@@ -85,13 +89,11 @@ export default function MessengerPage() {
         localStorage.setItem('user', JSON.stringify(formattedUser));
       } catch (error) {
         console.error('Failed to fetch user information:', error);
-      } finally {
-        setUserLoading(false);
       }
     };
 
     fetchUserInfo();
-  }, [isAuthenticated, setUser]);
+  }, [isAuthenticated, setUser, user]);
 
   // Fetch conversations from API
   useEffect(() => {
@@ -141,8 +143,28 @@ export default function MessengerPage() {
     });
   };
 
-  // Show loading while checking authentication or fetching conversations
-  if (authLoading || conversationsLoading || userLoading) {
+  const handleViewChange = (view) => {
+    setActiveView(view);
+    
+    // Handle navigation based on the view
+    switch(view) {
+      case 'feed':
+        router.push('/feed');
+        break;
+      case 'messages':
+        // Already on messages page, just update state
+        setActiveView('messages');
+        break;
+      case 'settings':
+        router.push('/settings');
+        break;
+      default:
+        break;
+    }
+  };
+
+  // Only block on auth check, allow progressive rendering for data
+  if (authLoading) {
     return (
       <div className="h-screen w-full flex items-center justify-center bg-gray-900">
         <div className="text-white">Loading...</div>
@@ -157,12 +179,23 @@ export default function MessengerPage() {
 
   return (
     <div className="h-screen w-full flex bg-gray-900">
+      {/* Sidebar */}
+      <Sidebar 
+        activeView={activeView}
+        onViewChange={handleViewChange}
+        onOpenProfile={() => setIsProfileOpen(true)}
+      />
+      
+      {/* Conversation List */}
       <ConversationList
         conversations={conversations}
         selectedConversation={selectedConversation}
         onSelectConversation={setSelectedConversation}
         onOpenProfile={() => setIsProfileOpen(true)}
+        isLoading={conversationsLoading}
       />
+      
+      {/* Message Thread */}
       {selectedConversation ? (
         <MessageThread
           conversation={selectedConversation}
