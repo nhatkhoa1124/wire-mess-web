@@ -31,18 +31,65 @@ const mockMessages = {
 };
 
 export default function MessengerPage() {
-  const { isAuthenticated, loading: authLoading } = useAuth();
+  const { isAuthenticated, loading: authLoading, setUser } = useAuth();
   const router = useRouter();
   const [conversations, setConversations] = useState([]);
   const [conversationsLoading, setConversationsLoading] = useState(true);
   const [selectedConversation, setSelectedConversation] = useState(null);
   const [messages, setMessages] = useState(mockMessages);
+  const [userLoading, setUserLoading] = useState(true);
 
   useEffect(() => {
     if (!authLoading && !isAuthenticated) {
       router.push('/auth/login');
     }
   }, [isAuthenticated, authLoading, router]);
+
+  // Fetch current user information
+  useEffect(() => {
+    const fetchUserInfo = async () => {
+      if (!isAuthenticated) return;
+
+      try {
+        const token = localStorage.getItem('token');
+        if (!token) return;
+
+        const response = await fetch('/api/users/me', {
+          method: 'GET',
+          headers: {
+            'Content-Type': 'application/json',
+            'Authorization': `Bearer ${token}`,
+          },
+        });
+
+        if (!response.ok) {
+          throw new Error('Failed to fetch user information');
+        }
+
+        const userData = await response.json();
+        
+        // Update user in auth context with API data
+        const formattedUser = {
+          id: userData.id,
+          name: userData.username,
+          email: userData.email,
+          phoneNumber: userData.phoneNumber,
+          avatar: userData.avatarUrl,
+          status: userData.isOnline ? 'Available' : 'Offline',
+          lastActive: userData.lastActive,
+        };
+
+        setUser(formattedUser);
+        localStorage.setItem('user', JSON.stringify(formattedUser));
+      } catch (error) {
+        console.error('Failed to fetch user information:', error);
+      } finally {
+        setUserLoading(false);
+      }
+    };
+
+    fetchUserInfo();
+  }, [isAuthenticated, setUser]);
 
   // Fetch conversations from API
   useEffect(() => {
@@ -93,7 +140,7 @@ export default function MessengerPage() {
   };
 
   // Show loading while checking authentication or fetching conversations
-  if (authLoading || conversationsLoading) {
+  if (authLoading || conversationsLoading || userLoading) {
     return (
       <div className="h-screen w-full flex items-center justify-center bg-gray-900">
         <div className="text-white">Loading...</div>

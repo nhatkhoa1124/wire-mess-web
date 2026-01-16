@@ -1,7 +1,9 @@
 "use client";
 import { Search, Edit, MoreHorizontal } from 'lucide-react';
+import { useAuth } from '@/lib/contexts/auth-context';
 
-export default function ConversationList({ conversations, selectedConversation, onSelectConversation }) {
+export default function ConversationList({ conversations, selectedConversation, onSelectConversation, onOpenProfile }) {
+  const { user: currentUser } = useAuth();
   return (
     <div className="w-full md:w-96 border-r border-gray-800 flex flex-col h-full bg-gray-900">
       {/* Header */}
@@ -69,6 +71,31 @@ export default function ConversationList({ conversations, selectedConversation, 
           </button>
         ))}
       </div>
+      {/* User Profile Badge */}
+      {currentUser && (
+        <button
+          onClick={onOpenProfile}
+          className="p-4 border-b border-gray-800 hover:bg-gray-800 transition-colors flex items-center gap-3"
+        >
+          <div className="relative flex-shrink-0">
+            <img
+              src={currentUser.avatar || '/default-avatar.png'}
+              alt={currentUser.name || 'User'}
+              className="w-12 h-12 rounded-full object-cover"
+            />
+            <div className={`absolute bottom-0 right-0 w-3.5 h-3.5 rounded-full border-2 border-gray-900 ${
+              currentUser.status === 'Available' ? 'bg-green-500' :
+              currentUser.status === 'Busy' ? 'bg-yellow-500' :
+              currentUser.status === 'Away' ? 'bg-orange-500' :
+              'bg-red-500'
+            }`}></div>
+          </div>
+          <div className="flex-1 text-left">
+            <h3 className="font-semibold text-white">{currentUser.name || 'User'}</h3>
+            <p className="text-xs text-gray-400">{currentUser.status || 'Available'}</p>
+          </div>
+        </button>
+      )}
     </div>
   );
 }
