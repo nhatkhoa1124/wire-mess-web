@@ -10,7 +10,7 @@ export default function MessageThread({ conversation, messages, onSendMessage })
         <div className="flex items-center gap-3">
           <div className="relative">
             <img
-              src={conversation.avatar}
+              src={conversation.avatar || '/default-avatar.svg'}
               alt={conversation.name}
               className="w-10 h-10 rounded-full object-cover"
             />
@@ -47,7 +47,7 @@ export default function MessageThread({ conversation, messages, onSendMessage })
             <div className={`flex items-end gap-2 max-w-md ${message.sender === 'me' ? 'flex-row-reverse' : 'flex-row'}`}>
               {message.sender === 'other' && (
                 <img
-                  src={conversation.avatar}
+                  src={conversation.avatar || '/default-avatar.svg'}
                   alt={conversation.name}
                   className="w-7 h-7 rounded-full object-cover flex-shrink-0"
                 />

@@ -73,6 +73,8 @@ export default function MessengerPage() {
         }
 
         const userData = await response.json();
+        console.log('Full user data from API:', userData);
+        console.log('Avatar URL:', userData.avatarUrl);
         
         // Update user in auth context with API data
         const formattedUser = {
@@ -80,11 +82,11 @@ export default function MessengerPage() {
           name: userData.username,
           email: userData.email,
           phoneNumber: userData.phoneNumber,
-          avatar: userData.avatarUrl,
+          avatar: userData.avatarUrl || '/default-avatar.svg',
           status: userData.isOnline ? 'Available' : 'Offline',
           lastActive: userData.lastActive,
         };
-
+        console.log('Formatted user:', formattedUser);
         setUser(formattedUser);
         localStorage.setItem('user', JSON.stringify(formattedUser));
       } catch (error) {

@@ -53,7 +53,7 @@ export default function ConversationList({ conversations, selectedConversation, 
               {/* Avatar */}
               <div className="relative flex-shrink-0">
                 <img
-                  src={conversation.avatar}
+                  src={conversation.avatar || '/default-avatar.svg'}
                   alt={conversation.name}
                   className="w-14 h-14 rounded-full object-cover"
                 />
@@ -89,7 +89,7 @@ export default function ConversationList({ conversations, selectedConversation, 
         >
           <div className="relative flex-shrink-0">
             <img
-              src={currentUser.avatar || '/default-avatar.png'}
+              src={currentUser.avatar || '/default-avatar.svg'}
               alt={currentUser.name || 'User'}
               className="w-12 h-12 rounded-full object-cover"
             />

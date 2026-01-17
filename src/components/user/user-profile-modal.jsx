@@ -9,12 +9,26 @@ export default function UserProfileModal({ isOpen, onClose }) {
   const [name, setName] = useState(user?.name || '');
   const [email, setEmail] = useState(user?.email || '');
   const [phoneNumber, setPhoneNumber] = useState(user?.phoneNumber || '');
-  const [avatarUrl, setAvatarUrl] = useState(user?.avatar || '');
+  const [avatarFile, setAvatarFile] = useState(null);
+  const [avatarPreview, setAvatarPreview] = useState(user?.avatar || '/default-avatar.svg');
   const [status, setStatus] = useState(user?.status || 'Available');
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
 
   if (!user) return null;
+
+  const handleAvatarChange = (e) => {
+    const file = e.target.files?.[0];
+    if (file) {
+      setAvatarFile(file);
+      // Create preview URL for the selected image
+      const reader = new FileReader();
+      reader.onloadend = () => {
+        setAvatarPreview(reader.result);
+      };
+      reader.readAsDataURL(file);
+    }
+  };
 
   const handleSave = async () => {
     setError('');
@@ -40,28 +54,29 @@ export default function UserProfileModal({ isOpen, onClose }) {
     try {
       const token = localStorage.getItem('token');
       
-      // Build request body with only changed fields
-      const updateData = {};
+      // Build FormData for multipart/form-data request
+      const formData = new FormData();
+      
       if (name && name.trim() !== user.name) {
-        updateData.username = name.trim();
+        formData.append('username', name.trim());
       }
       if (email && email.trim() !== user.email) {
-        updateData.email = email.trim();
+        formData.append('email', email.trim());
       }
       if (phoneNumber && phoneNumber.trim() !== (user.phoneNumber || '')) {
-        updateData.phoneNumber = phoneNumber.trim();
+        formData.append('phoneNumber', phoneNumber.trim());
       }
-      if (avatarUrl && avatarUrl.trim() !== (user.avatar || '')) {
-        updateData.avatarUrl = avatarUrl.trim();
+      if (avatarFile) {
+        formData.append('avatar', avatarFile);
       }
 
       const response = await fetch('/api/users/me/update', {
         method: 'PUT',
         headers: {
-          'Content-Type': 'application/json',
           'Authorization': `Bearer ${token}`,
+          // Don't set Content-Type header - browser will set it with boundary for FormData
         },
-        body: JSON.stringify(updateData),
+        body: formData,
       });
 
       const data = await response.json();
@@ -76,7 +91,7 @@ export default function UserProfileModal({ isOpen, onClose }) {
         name: data.username,
         email: data.email,
         phoneNumber: data.phoneNumber,
-        avatar: data.avatarUrl,
+        avatar: data.avatarUrl || '/default-avatar.svg',
         status: status,
       };
 
@@ -87,7 +102,8 @@ export default function UserProfileModal({ isOpen, onClose }) {
       setName(data.username);
       setEmail(data.email);
       setPhoneNumber(data.phoneNumber || '');
-      setAvatarUrl(data.avatarUrl || '');
+      setAvatarPreview(data.avatarUrl || '/default-avatar.svg');
+      setAvatarFile(null);
       
       setIsEditing(false);
     } catch (error) {
@@ -102,7 +118,8 @@ export default function UserProfileModal({ isOpen, onClose }) {
     setName(user.name);
     setEmail(user.email);
     setPhoneNumber(user.phoneNumber || '');
-    setAvatarUrl(user.avatar || '');
+    setAvatarFile(null);
+    setAvatarPreview(user.avatar || '/default-avatar.svg');
     setStatus(user.status || 'Available');
     setError('');
     setIsEditing(false);
@@ -142,14 +159,26 @@ export default function UserProfileModal({ isOpen, onClose }) {
           <div className="flex flex-col items-center">
             <div className="relative group">
               <img
-                src={user.avatar || '/default-avatar.png'}
+                src={avatarPreview || '/default-avatar.svg'}
                 alt={user.name}
                 className="w-32 h-32 rounded-full object-cover border-4 border-gray-800"
               />
-              <button className="absolute bottom-0 right-0 p-2 bg-gray-700 hover:bg-gray-600 rounded-full transition-colors">
-                <Camera className="w-5 h-5 text-white" />
-              </button>
+              {isEditing && (
+                <label htmlFor="avatar-upload" className="absolute bottom-0 right-0 p-2 bg-gray-700 hover:bg-gray-600 rounded-full transition-colors cursor-pointer">
+                  <Camera className="w-5 h-5 text-white" />
+                  <input
+                    id="avatar-upload"
+                    type="file"
+                    accept="image/*"
+                    onChange={handleAvatarChange}
+                    className="hidden"
+                  />
+                </label>
+              )}
             </div>
+            {isEditing && avatarFile && (
+              <p className="mt-2 text-sm text-gray-400">Selected: {avatarFile.name}</p>
+            )}
           </div>
 
           {/* Profile Fields */}
@@ -212,24 +241,6 @@ export default function UserProfileModal({ isOpen, onClose }) {
                 />
               ) : (
                 <p className="text-gray-400">{user.phoneNumber || 'Not set'}</p>
-              )}
-            </div>
-
-            {/* Avatar URL */}
-            <div>
-              <label className="block text-sm font-medium text-gray-300 mb-2">
-                Avatar URL
-              </label>
-              {isEditing ? (
-                <input
-                  type="url"
-                  value={avatarUrl}
-                  onChange={(e) => setAvatarUrl(e.target.value)}
-                  className="w-full px-4 py-3 bg-gray-800 border border-gray-700 text-white rounded-lg focus:outline-none focus:ring-2 focus:ring-gray-600 placeholder-gray-500"
-                  placeholder="Enter avatar image URL"
-                />
-              ) : (
-                <p className="text-gray-400 truncate">{user.avatar || 'Not set'}</p>
               )}
             </div>
 

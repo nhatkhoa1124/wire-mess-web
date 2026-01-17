@@ -1,8 +1,10 @@
 "use client";
 import { Heart, MessageCircle, Share2, MoreHorizontal, ThumbsUp, Send } from 'lucide-react';
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
+import { useAuth } from '../../lib/contexts/auth-context';
 import Sidebar from '../../components/chat/sidebar';
+import UserProfileModal from '../../components/user/user-profile-modal';
 
 const mockPosts = [
   {
@@ -46,10 +48,57 @@ const mockPosts = [
 ];
 
 export default function MainFeed() {
+  const { isAuthenticated, loading: authLoading, setUser, user } = useAuth();
   const router = useRouter();
   const [posts, setPosts] = useState(mockPosts);
   const [newPost, setNewPost] = useState('');
   const [isProfileOpen, setIsProfileOpen] = useState(false);
+
+  useEffect(() => {
+    if (!authLoading && !isAuthenticated) {
+      router.push('/auth/login');
+    }
+  }, [isAuthenticated, authLoading, router]);
+
+  // Fetch current user information
+  useEffect(() => {
+    const fetchUserInfo = async () => {
+      if (!isAuthenticated) return;
+      if (user && user.id) return;
+
+      try {
+        const token = localStorage.getItem('token');
+        if (!token) return;
+
+        const response = await fetch('/api/users/me', {
+          method: 'GET',
+          headers: {
+            'Content-Type': 'application/json',
+            'Authorization': `Bearer ${token}`,
+          },
+        });
+
+        if (!response.ok) throw new Error('Failed to fetch user information');
+
+        const userData = await response.json();
+        const formattedUser = {
+          id: userData.id,
+          name: userData.username,
+          email: userData.email,
+          phoneNumber: userData.phoneNumber,
+          avatar: userData.avatarUrl || '/default-avatar.svg',
+          status: userData.isOnline ? 'Available' : 'Offline',
+          lastActive: userData.lastActive,
+        };
+        setUser(formattedUser);
+        localStorage.setItem('user', JSON.stringify(formattedUser));
+      } catch (error) {
+        console.error('Failed to fetch user information:', error);
+      }
+    };
+
+    fetchUserInfo();
+  }, [isAuthenticated, setUser, user]);
 
   const handleLike = (postId) => {
     setPosts(posts.map(post => 
@@ -65,8 +114,8 @@ export default function MainFeed() {
       const post = {
         id: posts.length + 1,
         author: {
-          name: 'John Doe',
-          avatar: 'https://images.unsplash.com/photo-1472099645785-5658abf4ff4e?w=100&h=100&fit=crop',
+          name: user?.name || 'User',
+          avatar: user?.avatar || '/default-avatar.svg',
           timestamp: 'Just now',
         },
         content: newPost,
@@ -95,6 +144,18 @@ export default function MainFeed() {
     }
   };
 
+  if (authLoading) {
+    return (
+      <div className="h-screen w-full flex items-center justify-center bg-gray-900">
+        <div className="text-white">Loading...</div>
+      </div>
+    );
+  }
+
+  if (!isAuthenticated) {
+    return null;
+  }
+
   return (
     <div className="h-screen w-full flex bg-gray-900">
       {/* Sidebar */}
@@ -117,7 +178,7 @@ export default function MainFeed() {
           <form onSubmit={handleCreatePost}>
             <div className="flex gap-3">
               <img
-                src="https://images.unsplash.com/photo-1472099645785-5658abf4ff4e?w=100&h=100&fit=crop"
+                src={user?.avatar || '/default-avatar.svg'}
                 alt="Your avatar"
                 className="w-10 h-10 rounded-full object-cover"
               />
@@ -211,6 +272,12 @@ export default function MainFeed() {
         </div>
       </div>
       </div>
+
+      {/* User Profile Modal */}
+      <UserProfileModal 
+        isOpen={isProfileOpen}
+        onClose={() => setIsProfileOpen(false)}
+      />
     </div>
   );
 }

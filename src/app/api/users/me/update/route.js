@@ -1,4 +1,4 @@
-import { fetchAPI } from '../../../../../lib/api';
+import { fetchAPI } from '@/lib/api';
 
 export async function PUT(request) {
   try {
@@ -12,8 +12,12 @@ export async function PUT(request) {
       );
     }
 
-    const body = await request.json();
-    const { username, email, phoneNumber, avatarUrl } = body;
+    // Parse multipart/form-data
+    const formData = await request.formData();
+    const username = formData.get('username');
+    const email = formData.get('email');
+    const phoneNumber = formData.get('phoneNumber');
+    const avatar = formData.get('avatar');
 
     // Validate email format if provided
     if (email && email.trim() !== '') {
@@ -34,39 +38,52 @@ export async function PUT(request) {
       );
     }
 
-    // Build request body with only non-empty fields
-    const updateData = {};
+    // Build FormData for backend
+    const backendFormData = new FormData();
+    let hasData = false;
+
     if (username && username.trim() !== '') {
-      updateData.username = username.trim();
+      backendFormData.append('username', username.trim());
+      hasData = true;
     }
     if (email && email.trim() !== '') {
-      updateData.email = email.trim();
+      backendFormData.append('email', email.trim());
+      hasData = true;
     }
     if (phoneNumber && phoneNumber.trim() !== '') {
-      updateData.phoneNumber = phoneNumber.trim();
+      backendFormData.append('phoneNumber', phoneNumber.trim());
+      hasData = true;
     }
-    if (avatarUrl && avatarUrl.trim() !== '') {
-      updateData.avatarUrl = avatarUrl.trim();
+    if (avatar && avatar instanceof File) {
+      // Convert File to Blob for axios
+      const arrayBuffer = await avatar.arrayBuffer();
+      const blob = new Blob([arrayBuffer], { type: avatar.type });
+      backendFormData.append('avatar', blob, avatar.name);
+      hasData = true;
     }
 
     // If no fields to update, return error
-    if (Object.keys(updateData).length === 0) {
+    if (!hasData) {
       return Response.json(
         { message: 'No fields to update' },
         { status: 400 }
       );
     }
 
-    const data = await fetchAPI('/users/me/update', {
+    // Send multipart/form-data to backend using fetchAPI
+    const data = await fetchAPI('/users/profile', {
       method: 'PUT',
+      body: backendFormData,
       headers: {
         'Authorization': authHeader,
+        // axios will set the correct Content-Type with boundary
       },
-      body: updateData,
     });
 
     return Response.json(data);
   } catch (error) {
+    console.error('Profile update error:', error);
+    
     return Response.json(
       { message: error.message || 'Failed to update user profile' },
       { status: 500 }

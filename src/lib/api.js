@@ -10,14 +10,17 @@ const httpsAgent = new https.Agent({
 
 export async function fetchAPI(endpoint, options = {}) {
   try {
+    // Prepare headers - don't set Content-Type if body is FormData
+    const headers = { ...options.headers };
+    if (!(options.body instanceof FormData)) {
+      headers['Content-Type'] = 'application/json';
+    }
+
     const response = await axios({
       url: `${API_BASE_DEVELOPMENT}${endpoint}`,
       method: options.method || 'GET',
       data: options.body,
-      headers: {
-        'Content-Type': 'application/json',
-        ...options.headers,
-      },
+      headers: headers,
       httpsAgent: httpsAgent, // Use the agent for HTTPS requests
     });
     return response.data;

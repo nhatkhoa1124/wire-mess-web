@@ -22,7 +22,7 @@ export default function HomePage() {
             <div className="flex items-center gap-4">
               {isAuthenticated ? (
                 <>
-                  <span className="text-gray-300">Welcome, {user?.username || user?.name || 'User'}</span>
+                  <span className="text-gray-300">Welcome, {user?.name || 'User'}</span>
                   <button
                     onClick={() => router.push('/chat')}
                     className="px-6 py-2 bg-gradient-to-r from-gray-700 to-gray-900 text-white rounded-lg hover:from-gray-600 hover:to-gray-800 transition-all"

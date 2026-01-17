@@ -1,16 +1,65 @@
 "use client";
 import { Bell, Lock, Globe, Moon, Volume2, Shield, HelpCircle, LogOut } from 'lucide-react';
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
+import { useAuth } from '../../lib/contexts/auth-context';
 import Sidebar from '../../components/chat/sidebar';
+import UserProfileModal from '../../components/user/user-profile-modal';
 
 export default function SettingsPage() {
+  const { isAuthenticated, loading: authLoading, setUser, user, logout } = useAuth();
   const router = useRouter();
   const [notifications, setNotifications] = useState(true);
   const [soundEnabled, setSoundEnabled] = useState(true);
   const [darkMode, setDarkMode] = useState(true);
   const [onlineStatus, setOnlineStatus] = useState(true);
   const [isProfileOpen, setIsProfileOpen] = useState(false);
+
+  useEffect(() => {
+    if (!authLoading && !isAuthenticated) {
+      router.push('/auth/login');
+    }
+  }, [isAuthenticated, authLoading, router]);
+
+  // Fetch current user information
+  useEffect(() => {
+    const fetchUserInfo = async () => {
+      if (!isAuthenticated) return;
+      if (user && user.id) return;
+
+      try {
+        const token = localStorage.getItem('token');
+        if (!token) return;
+
+        const response = await fetch('/api/users/me', {
+          method: 'GET',
+          headers: {
+            'Content-Type': 'application/json',
+            'Authorization': `Bearer ${token}`,
+          },
+        });
+
+        if (!response.ok) throw new Error('Failed to fetch user information');
+
+        const userData = await response.json();
+        const formattedUser = {
+          id: userData.id,
+          name: userData.username,
+          email: userData.email,
+          phoneNumber: userData.phoneNumber,
+          avatar: userData.avatarUrl || '/default-avatar.svg',
+          status: userData.isOnline ? 'Available' : 'Offline',
+          lastActive: userData.lastActive,
+        };
+        setUser(formattedUser);
+        localStorage.setItem('user', JSON.stringify(formattedUser));
+      } catch (error) {
+        console.error('Failed to fetch user information:', error);
+      }
+    };
+
+    fetchUserInfo();
+  }, [isAuthenticated, setUser, user]);
 
   const settingsSections = [
     {
@@ -108,6 +157,18 @@ export default function SettingsPage() {
     }
   };
 
+  if (authLoading) {
+    return (
+      <div className="h-screen w-full flex items-center justify-center bg-gray-900">
+        <div className="text-white">Loading...</div>
+      </div>
+    );
+  }
+
+  if (!isAuthenticated) {
+    return null;
+  }
+
   return (
     <div className="h-screen w-full flex bg-gray-900">
       {/* Sidebar */}
@@ -129,15 +190,18 @@ export default function SettingsPage() {
         <div className="bg-gray-900 border border-gray-800 rounded-xl p-6 mb-6">
           <div className="flex items-center gap-4">
             <img
-              src="https://images.unsplash.com/photo-1472099645785-5658abf4ff4e?w=100&h=100&fit=crop"
+              src={user?.avatar || '/default-avatar.svg'}
               alt="Profile"
               className="w-16 h-16 rounded-full object-cover"
             />
             <div className="flex-1">
-              <h3 className="font-semibold text-white text-lg">John Doe</h3>
-              <p className="text-gray-400 text-sm">john.doe@example.com</p>
+              <h3 className="font-semibold text-white text-lg">{user?.name || 'Loading...'}</h3>
+              <p className="text-gray-400 text-sm">{user?.email || ''}</p>
             </div>
-            <button className="px-4 py-2 bg-gray-800 hover:bg-gray-700 text-white rounded-lg transition-colors">
+            <button 
+              onClick={() => setIsProfileOpen(true)}
+              className="px-4 py-2 bg-gray-800 hover:bg-gray-700 text-white rounded-lg transition-colors"
+            >
               Edit Profile
             </button>
           </div>
@@ -204,7 +268,13 @@ export default function SettingsPage() {
 
         {/* Logout Button */}
         <div className="mt-6">
-          <button className="w-full bg-red-900/30 border border-red-800/50 text-red-400 rounded-xl px-6 py-4 font-semibold hover:bg-red-900/50 transition-all flex items-center justify-center gap-3">
+          <button 
+            onClick={() => {
+              logout();
+              router.push('/auth/login');
+            }}
+            className="w-full bg-red-900/30 border border-red-800/50 text-red-400 rounded-xl px-6 py-4 font-semibold hover:bg-red-900/50 transition-all flex items-center justify-center gap-3"
+          >
             <LogOut className="w-5 h-5" />
             Log Out
           </button>
@@ -217,6 +287,12 @@ export default function SettingsPage() {
         </div>
       </div>
       </div>
+
+      {/* User Profile Modal */}
+      <UserProfileModal 
+        isOpen={isProfileOpen}
+        onClose={() => setIsProfileOpen(false)}
+      />
     </div>
   );
 }
