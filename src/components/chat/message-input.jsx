@@ -2,12 +2,12 @@
 import { useState } from 'react';
 import { Plus, Image, Smile, Send } from 'lucide-react';
 
-export default function MessageInput({ onSendMessage }) {
+export default function MessageInput({ onSendMessage, disabled = false }) {
   const [message, setMessage] = useState('');
 
   const handleSubmit = (e) => {
     e.preventDefault();
-    if (message.trim()) {
+    if (message.trim() && !disabled) {
       onSendMessage(message);
       setMessage('');
     }
@@ -18,13 +18,15 @@ export default function MessageInput({ onSendMessage }) {
       <form onSubmit={handleSubmit} className="flex items-center gap-2">
         <button
           type="button"
-          className="p-2 hover:bg-gray-800 rounded-full transition-colors text-gray-400"
+          className="p-2 hover:bg-gray-800 rounded-full transition-colors text-gray-400 disabled:opacity-50"
+          disabled={disabled}
         >
           <Plus className="w-5 h-5" />
         </button>
         <button
           type="button"
-          className="p-2 hover:bg-gray-800 rounded-full transition-colors text-gray-400"
+          className="p-2 hover:bg-gray-800 rounded-full transition-colors text-gray-400 disabled:opacity-50"
+          disabled={disabled}
         >
           <Image className="w-5 h-5" />
         </button>
@@ -35,11 +37,13 @@ export default function MessageInput({ onSendMessage }) {
             value={message}
             onChange={(e) => setMessage(e.target.value)}
             placeholder="Aa"
-            className="w-full px-4 py-2 bg-gray-800 border border-gray-700 text-white rounded-full focus:outline-none focus:ring-2 focus:ring-gray-600 placeholder-gray-500"
+            disabled={disabled}
+            className="w-full px-4 py-2 bg-gray-800 border border-gray-700 text-white rounded-full focus:outline-none focus:ring-2 focus:ring-gray-600 placeholder-gray-500 disabled:opacity-50"
           />
           <button
             type="button"
             className="absolute right-3 top-1/2 transform -translate-y-1/2 hover:opacity-75"
+            disabled={disabled}
           >
             <Smile className="w-5 h-5 text-gray-400" />
           </button>
@@ -48,7 +52,7 @@ export default function MessageInput({ onSendMessage }) {
         <button
           type="submit"
           className="p-2 hover:bg-gray-800 rounded-full transition-colors text-gray-400 disabled:opacity-50"
-          disabled={!message.trim()}
+          disabled={!message.trim() || disabled}
         >
           <Send className="w-5 h-5" />
         </button>

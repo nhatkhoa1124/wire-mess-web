@@ -1,47 +1,40 @@
 "use client";
-import { useEffect, useState } from 'react';
+import { useEffect, useState, useCallback } from 'react';
 import { useRouter } from 'next/navigation';
 import { useAuth } from '../../lib/contexts/auth-context';
+import useChat from '../../lib/hooks/useChat';
 import Sidebar from '../../components/chat/sidebar';
 import ConversationList from '../../components/chat/conversation-list';
 import MessageThread from '../../components/chat/message-thread';
 import UserProfileModal from '../../components/user/user-profile-modal';
-import { fetchAPI } from '../../lib/api';
-
-const mockMessages = {
-  1: [
-    { id: 1, sender: 'other', text: 'Hey! How are you doing?', timestamp: '2:30 PM' },
-    { id: 2, sender: 'me', text: "I'm doing great! How about you?", timestamp: '2:32 PM' },
-    { id: 3, sender: 'other', text: "Pretty good! Just finished a big project at work.", timestamp: '2:33 PM' },
-    { id: 4, sender: 'me', text: 'That sounds awesome! Congrats! 🎉', timestamp: '2:35 PM' },
-    { id: 5, sender: 'other', text: 'Thanks! Want to grab coffee this weekend?', timestamp: '2:36 PM' },
-  ],
-  2: [
-    { id: 1, sender: 'other', text: 'Did you see the game last night?', timestamp: '1:15 PM' },
-    { id: 2, sender: 'me', text: 'Yes! It was incredible!', timestamp: '1:20 PM' },
-  ],
-  3: [
-    { id: 1, sender: 'me', text: 'No problem! Happy to help!', timestamp: '11:30 AM' },
-    { id: 2, sender: 'other', text: 'Thanks for your help! 😊', timestamp: '11:45 AM' },
-  ],
-  4: [
-    { id: 1, sender: 'other', text: 'See you tomorrow!', timestamp: '9:00 AM' },
-  ],
-  5: [
-    { id: 1, sender: 'other', text: 'Can you send me that file?', timestamp: 'Yesterday' },
-  ],
-};
 
 export default function MessengerPage() {
   const { isAuthenticated, loading: authLoading, setUser, user } = useAuth();
   const router = useRouter();
-  const [conversations, setConversations] = useState([]);
-  const [conversationsLoading, setConversationsLoading] = useState(true);
+  
+  // Use the chat hook for SignalR + REST API integration
+  const {
+    isConnected,
+    connectionError,
+    conversations,
+    activeMessages,
+    activeConversation,
+    activeConversationId,
+    isLoadingConversations,
+    isLoadingMessages,
+    isSendingMessage,
+    loadConversations,
+    joinConversation,
+    leaveConversation,
+    sendMessage,
+    setActiveConversationId,
+  } = useChat();
+  
   const [selectedConversation, setSelectedConversation] = useState(null);
-  const [messages, setMessages] = useState(mockMessages);
   const [isProfileOpen, setIsProfileOpen] = useState(false);
   const [activeView, setActiveView] = useState('messages');
 
+  // Redirect to login if not authenticated
   useEffect(() => {
     if (!authLoading && !isAuthenticated) {
       router.push('/auth/login');
@@ -74,7 +67,6 @@ export default function MessengerPage() {
 
         const userData = await response.json();
         console.log('Full user data from API:', userData);
-        console.log('Avatar URL:', userData.avatarUrl);
         
         // Update user in auth context with API data
         const formattedUser = {
@@ -86,7 +78,6 @@ export default function MessengerPage() {
           status: userData.isOnline ? 'Available' : 'Offline',
           lastActive: userData.lastActive,
         };
-        console.log('Formatted user:', formattedUser);
         setUser(formattedUser);
         localStorage.setItem('user', JSON.stringify(formattedUser));
       } catch (error) {
@@ -97,53 +88,39 @@ export default function MessengerPage() {
     fetchUserInfo();
   }, [isAuthenticated, setUser, user]);
 
-  // Fetch conversations from API
+  // Load conversations when connected to SignalR
   useEffect(() => {
-    const fetchConversations = async () => {
-      if (!isAuthenticated) return;
+    if (isConnected && isAuthenticated) {
+      loadConversations();
+    }
+  }, [isConnected, isAuthenticated, loadConversations]);
 
-      try {
-        const token = localStorage.getItem('token');
-        const response = await fetch('/api/chat', {
-          method: 'GET',
-          headers: {
-            'Content-Type': 'application/json',
-            ...(token && { 'Authorization': `Bearer ${token}` }),
-          },
-        });
-        
-        if (!response.ok) {
-          throw new Error('Failed to fetch conversations');
-        }
-        
-        const data = await response.json();
-        setConversations(data);
-        if (data.length > 0 && !selectedConversation) {
-          setSelectedConversation(data[0]);
-        }
-      } catch (error) {
-        console.error('Failed to fetch conversations:', error);
-      } finally {
-        setConversationsLoading(false);
-      }
-    };
+  // Handle conversation selection
+  const handleSelectConversation = useCallback(async (conversation) => {
+    // Leave previous conversation if any
+    if (activeConversationId && activeConversationId !== conversation.id) {
+      await leaveConversation(activeConversationId);
+    }
+    
+    setSelectedConversation(conversation);
+    
+    // Join the new conversation (this will also load messages)
+    if (isConnected) {
+      await joinConversation(conversation.id);
+    }
+  }, [activeConversationId, isConnected, joinConversation, leaveConversation]);
 
-    fetchConversations();
-  }, [isAuthenticated]);
-
-  const handleSendMessage = (text) => {
-    const newMessage = {
-      id: messages[selectedConversation.id].length + 1,
-      sender: 'me',
-      text,
-      timestamp: 'Just now',
-    };
-
-    setMessages({
-      ...messages,
-      [selectedConversation.id]: [...messages[selectedConversation.id], newMessage],
-    });
-  };
+  // Handle sending messages
+  const handleSendMessage = useCallback(async (text) => {
+    if (!selectedConversation || !text.trim()) return;
+    
+    try {
+      await sendMessage(selectedConversation.id, text);
+    } catch (error) {
+      console.error('Failed to send message:', error);
+      // You could add a toast notification here
+    }
+  }, [selectedConversation, sendMessage]);
 
   const handleViewChange = (view) => {
     setActiveView(view);
@@ -154,7 +131,6 @@ export default function MessengerPage() {
         router.push('/feed');
         break;
       case 'messages':
-        // Already on messages page, just update state
         setActiveView('messages');
         break;
       case 'settings':
@@ -192,21 +168,38 @@ export default function MessengerPage() {
       <ConversationList
         conversations={conversations}
         selectedConversation={selectedConversation}
-        onSelectConversation={setSelectedConversation}
+        onSelectConversation={handleSelectConversation}
         onOpenProfile={() => setIsProfileOpen(true)}
-        isLoading={conversationsLoading}
+        isLoading={isLoadingConversations}
       />
+      
+      {/* Connection Status Banner */}
+      {connectionError && (
+        <div className="absolute top-0 left-0 right-0 bg-red-600 text-white text-center py-2 z-50">
+          Connection error: {connectionError}
+        </div>
+      )}
       
       {/* Message Thread */}
       {selectedConversation ? (
         <MessageThread
           conversation={selectedConversation}
-          messages={messages[selectedConversation.id] || []}
+          messages={activeMessages}
           onSendMessage={handleSendMessage}
+          currentUserId={user?.id}
+          isLoading={isLoadingMessages}
+          isSending={isSendingMessage}
         />
       ) : (
-        <div className="flex-1 flex items-center justify-center bg-black">
-          <p className="text-gray-400">Select a conversation to start messaging</p>
+        <div className="flex-1 flex flex-col items-center justify-center bg-black">
+          {!isConnected ? (
+            <div className="text-center">
+              <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-gray-400 mx-auto mb-4"></div>
+              <p className="text-gray-400">Connecting to chat...</p>
+            </div>
+          ) : (
+            <p className="text-gray-400">Select a conversation to start messaging</p>
+          )}
         </div>
       )}
       

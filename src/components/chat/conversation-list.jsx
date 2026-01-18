@@ -69,7 +69,11 @@ export default function ConversationList({ conversations, selectedConversation, 
                   <span className="text-xs text-gray-500 flex-shrink-0 ml-2">{conversation.timestamp}</span>
                 </div>
                 <div className="flex items-center justify-between">
-                  <p className="text-sm text-gray-400 truncate">{conversation.lastMessage}</p>
+                  <p className="text-sm text-gray-400 truncate">
+                    {typeof conversation.lastMessage === 'object' 
+                      ? (conversation.lastMessage?.content || 'Sent an attachment')
+                      : conversation.lastMessage}
+                  </p>
                   {conversation.unread > 0 && (
                     <span className="ml-2 bg-gray-700 text-white text-xs font-semibold rounded-full w-5 h-5 flex items-center justify-center flex-shrink-0">
                       {conversation.unread}
